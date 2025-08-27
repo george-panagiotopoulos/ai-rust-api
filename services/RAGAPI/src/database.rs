@@ -50,7 +50,7 @@ impl Database {
         limit: i32,
         similarity_threshold: f64,
     ) -> Result<Vec<DocumentWithSimilarity>> {
-        use tracing::{info, warn, error};
+        use tracing::info;
 
         info!("Searching for similar documents with embedding dimension: {}, limit: {}, threshold: {}",
               query_embedding.len(), limit, similarity_threshold);

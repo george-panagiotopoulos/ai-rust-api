@@ -1,4 +1,4 @@
-use crate::auth_client::{AuthClient, TokenValidationResponse};
+use crate::auth_client::AuthClient;
 use crate::bedrock_client::RAGRequest;
 use crate::rag::{RAGResponse, RAGService, RAGStats};
 use axum::{

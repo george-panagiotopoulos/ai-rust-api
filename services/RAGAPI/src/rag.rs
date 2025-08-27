@@ -1,5 +1,5 @@
 use crate::bedrock_client::{BedrockApiClient, RAGRequest};
-use crate::database::{Database, DocumentWithSimilarity};
+use crate::database::Database;
 use crate::embeddings::EmbeddingService;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
