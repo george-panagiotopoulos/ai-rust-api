@@ -1,0 +1,548 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-1234567890ab",
+		"name": "Bedrock Chat API with OAuth2",
+		"description": "Complete OAuth2 authentication flow for the Bedrock Chat API.\n\nThis collection demonstrates:\n1. Getting an OAuth2 token using client credentials\n2. Using the token to make authenticated requests to the chat endpoint\n3. Testing error scenarios\n\n**Setup Instructions:**\n1. Ensure your server is running on http://localhost:9100\n2. Run the \"Get OAuth2 Token\" request first to obtain a token\n3. The token will be automatically saved and used in subsequent requests\n4. Use the \"Chat with AI\" request to send messages\n\n**Environment Variables:**\nThis collection uses the following variables:\n- `base_url`: The base URL of your API (default: http://localhost:9100)\n- `access_token`: Automatically populated from the token request",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Get OAuth2 Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test that the response is successful",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Test response structure",
+									"pm.test(\"Response has required fields\", function () {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('access_token');",
+									"    pm.expect(responseJson).to.have.property('token_type');",
+									"    pm.expect(responseJson).to.have.property('expires_in');",
+									"    pm.expect(responseJson.token_type).to.equal('Bearer');",
+									"});",
+									"",
+									"// Save the access token for use in other requests",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', responseJson.access_token);",
+									"    ",
+									"    console.log('✅ Token saved successfully');",
+									"    console.log('Token expires in:', responseJson.expires_in, 'seconds');",
+									"}",
+									"",
+									"// Test token format (JWT should have 3 parts separated by dots)",
+									"pm.test(\"Token is valid JWT format\", function () {",
+									"    const responseJson = pm.response.json();",
+									"    const tokenParts = responseJson.access_token.split('.');",
+									"    pm.expect(tokenParts).to.have.lengthOf(3);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"grant_type\": \"client_credentials\",\n    \"client_id\": \"demo_client\",\n    \"client_secret\": \"demo_secret\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/oauth/token",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"oauth",
+								"token"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Successful Token Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"grant_type\": \"client_credentials\",\n    \"client_id\": \"demo_client\",\n    \"client_secret\": \"demo_secret\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/oauth/token",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"oauth",
+										"token"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "content-type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"access_token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkZW1vX2NsaWVudCIsImV4cCI6MTc1NjMwOTczNywiaWF0IjoxNzU2MjIzMzM3LCJjbGllbnRfaWQiOiJkZW1vX2NsaWVudCJ9.23XNKZkZBd15VNTAE3cj1OJMWt3Hht9lW3r-vzg136U\",\n    \"token_type\": \"Bearer\",\n    \"expires_in\": 86400\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Token with Invalid Credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test that authentication fails",
+									"pm.test(\"Status code is 401 Unauthorized\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"// Test error response structure",
+									"pm.test(\"Response has error structure\", function () {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('error');",
+									"    pm.expect(responseJson.error).to.have.property('code');",
+									"    pm.expect(responseJson.error).to.have.property('message');",
+									"    pm.expect(responseJson.error).to.have.property('timestamp');",
+									"    pm.expect(responseJson.error.code).to.equal('AUTH_ERROR');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"grant_type\": \"client_credentials\",\n    \"client_id\": \"invalid_client\",\n    \"client_secret\": \"wrong_secret\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/oauth/token",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"oauth",
+								"token"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Invalid Credentials Error",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"grant_type\": \"client_credentials\",\n    \"client_id\": \"invalid_client\",\n    \"client_secret\": \"wrong_secret\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/oauth/token",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"oauth",
+										"token"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "content-type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"error\": {\n        \"code\": \"AUTH_ERROR\",\n        \"message\": \"Invalid client credentials\",\n        \"timestamp\": \"2023-10-01T10:00:00Z\"\n    }\n}"
+						}
+					]
+				}
+			],
+			"description": "OAuth2 authentication endpoints for obtaining and testing access tokens."
+		},
+		{
+			"name": "Chat API",
+			"item": [
+				{
+					"name": "Chat with AI",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Check if we have a valid access token",
+									"const accessToken = pm.collectionVariables.get('access_token');",
+									"",
+									"if (!accessToken) {",
+									"    console.log('⚠️  No access token found. Please run \"Get OAuth2 Token\" first.');",
+									"} else {",
+									"    console.log('✅ Using saved access token');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful response",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Test response structure",
+									"pm.test(\"Response has required fields\", function () {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('id');",
+									"    pm.expect(responseJson).to.have.property('response');",
+									"    pm.expect(responseJson.id).to.be.a('string');",
+									"    pm.expect(responseJson.response).to.be.a('string');",
+									"});",
+									"",
+									"// Test that we got a meaningful response",
+									"pm.test(\"AI provided a response\", function () {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson.response.length).to.be.greaterThan(0);",
+									"});",
+									"",
+									"// Display the AI response in the console",
+									"const responseJson = pm.response.json();",
+									"console.log('🤖 AI Response:', responseJson.response);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"message\": \"Hello! Can you explain what OAuth2 is in simple terms?\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Successful Chat Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"message\": \"Hello! Can you explain what OAuth2 is in simple terms?\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/chat",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"chat"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "content-type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"response\": \"OAuth2 is an authorization framework that allows applications to access user accounts or services securely. Think of it like a valet key for your car - it gives limited access to what's needed without sharing your full credentials.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Chat without Authentication",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test that request is unauthorized",
+									"pm.test(\"Status code is 401 Unauthorized\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"// Test error response structure",
+									"pm.test(\"Response has error structure\", function () {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('error');",
+									"    pm.expect(responseJson.error).to.have.property('code');",
+									"    pm.expect(responseJson.error).to.have.property('message');",
+									"    pm.expect(responseJson.error.code).to.equal('AUTH_ERROR');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"message\": \"This request should fail because no authentication is provided\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Unauthorized Error",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"message\": \"This request should fail because no authentication is provided\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/chat",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"chat"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "content-type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"error\": {\n        \"code\": \"AUTH_ERROR\",\n        \"message\": \"Missing authorization header\",\n        \"timestamp\": \"2023-10-01T10:00:00Z\"\n    }\n}"
+						}
+					]
+				}
+			],
+			"description": "Protected chat endpoints that require OAuth2 authentication."
+		},
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Health Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful response",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Test response structure",
+									"pm.test(\"Response has required fields\", function () {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('status');",
+									"    pm.expect(responseJson).to.have.property('service');",
+									"    pm.expect(responseJson.status).to.equal('healthy');",
+									"    pm.expect(responseJson.service).to.equal('bedrock-chat-api');",
+									"});",
+									"",
+									"console.log('✅ Service is healthy and running');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Healthy Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/health",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"health"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "content-type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"status\": \"healthy\",\n    \"service\": \"bedrock-chat-api\"\n}"
+						}
+					]
+				}
+			],
+			"description": "Health check endpoint that doesn't require authentication."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set default base URL if not already set",
+					"if (!pm.collectionVariables.get('base_url')) {",
+					"    pm.collectionVariables.set('base_url', 'http://localhost:9100');",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test to check response time",
+					"pm.test('Response time is acceptable', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});",
+					"",
+					"// Global test to check content type for JSON responses",
+					"if (pm.response.headers.get('Content-Type') && pm.response.headers.get('Content-Type').includes('application/json')) {",
+					"    pm.test('Response is valid JSON', function () {",
+					"        pm.response.to.be.json;",
+					"    });",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:9100",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

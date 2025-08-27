@@ -1,0 +1,310 @@
+openapi: 3.0.3
+info:
+  title: Bedrock Chat API with OAuth2
+  description: |
+    A secure chat API powered by AWS Bedrock with OAuth2 authentication.
+    
+    ## Authentication
+    This API uses OAuth2 client credentials flow. To authenticate:
+    1. Obtain a token from the `/oauth/token` endpoint using your client credentials
+    2. Include the token in the Authorization header as `Bearer {token}` for protected endpoints
+    
+    ## Error Handling
+    All endpoints return structured error responses with the following format:
+    ```json
+    {
+      "error": {
+        "code": "ERROR_CODE",
+        "message": "Human readable error message",
+        "timestamp": "2023-10-01T10:00:00Z"
+      }
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+servers:
+  - url: http://localhost:9100
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the API service
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "healthy"
+                service: "bedrock-chat-api"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /oauth/token:
+    post:
+      summary: Generate OAuth2 access token
+      description: |
+        Generate an access token using OAuth2 client credentials flow.
+        Use the client_id and client_secret configured in your environment.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+            example:
+              grant_type: "client_credentials"
+              client_id: "demo_client"
+              client_secret: "demo_secret"
+      responses:
+        '200':
+          description: Token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                token_type: "Bearer"
+                expires_in: 86400
+        '400':
+          description: Bad request - invalid grant type or missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "BAD_REQUEST"
+                  message: "Unsupported grant_type. Only client_credentials is supported"
+                  timestamp: "2023-10-01T10:00:00Z"
+        '401':
+          description: Unauthorized - invalid client credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "AUTH_ERROR"
+                  message: "Invalid client credentials"
+                  timestamp: "2023-10-01T10:00:00Z"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chat:
+    post:
+      summary: Send chat message to AI
+      description: |
+        Send a message to the AI and receive a response. This endpoint requires authentication.
+        The AI is powered by AWS Bedrock using Claude models.
+      tags:
+        - Chat
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+            example:
+              message: "Hello, can you tell me what 2+2 equals?"
+      responses:
+        '200':
+          description: Chat response generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+              example:
+                id: "550e8400-e29b-41d4-a716-446655440000"
+                response: "Hello! 2 + 2 equals 4."
+        '400':
+          description: Bad request - invalid message format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "AUTH_ERROR"
+                  message: "Missing or invalid Authorization header"
+                  timestamp: "2023-10-01T10:00:00Z"
+        '502':
+          description: Bad gateway - external service error (AWS Bedrock)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "BEDROCK_ERROR"
+                  message: "External service error"
+                  timestamp: "2023-10-01T10:00:00Z"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /oauth/token endpoint
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+      properties:
+        status:
+          type: string
+          description: Health status of the service
+          example: "healthy"
+        service:
+          type: string
+          description: Name of the service
+          example: "bedrock-chat-api"
+
+    TokenRequest:
+      type: object
+      required:
+        - grant_type
+        - client_id
+        - client_secret
+      properties:
+        grant_type:
+          type: string
+          enum: [client_credentials]
+          description: OAuth2 grant type (only client_credentials supported)
+          example: "client_credentials"
+        client_id:
+          type: string
+          description: Client identifier
+          example: "demo_client"
+        client_secret:
+          type: string
+          description: Client secret
+          example: "demo_secret"
+
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          enum: [Bearer]
+          description: Token type
+          example: "Bearer"
+        expires_in:
+          type: integer
+          description: Token expiry time in seconds
+          example: 86400
+
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Message to send to the AI
+          minLength: 1
+          maxLength: 10000
+          example: "Hello, can you tell me what 2+2 equals?"
+
+    ChatResponse:
+      type: object
+      required:
+        - id
+        - response
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the chat response
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        response:
+          type: string
+          description: AI generated response
+          example: "Hello! 2 + 2 equals 4."
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+            - timestamp
+          properties:
+            code:
+              type: string
+              description: Error code identifier
+              enum: 
+                - AUTH_ERROR
+                - BAD_REQUEST
+                - NOT_FOUND
+                - INTERNAL_ERROR
+                - BEDROCK_ERROR
+                - TOKEN_ERROR
+                - VALIDATION_ERROR
+              example: "AUTH_ERROR"
+            message:
+              type: string
+              description: Human readable error message
+              example: "Invalid client credentials"
+            timestamp:
+              type: string
+              format: date-time
+              description: ISO 8601 timestamp of when the error occurred
+              example: "2023-10-01T10:00:00Z"
+
+tags:
+  - name: Health
+    description: Health check operations
+  - name: Authentication
+    description: OAuth2 authentication operations
+  - name: Chat
+    description: AI chat operations

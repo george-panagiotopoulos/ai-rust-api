@@ -1,0 +1,34 @@
+[package]
+name = "ragapi"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
+aws-config = "1.0"
+aws-sdk-bedrockruntime = "1.0"
+dotenv = "0.15"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.11", features = ["json"] }
+uuid = { version = "1.0", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+hex = "0.4"
+
+# Document processing
+pdf-extract = "0.7"
+docx-rs = "0.4"
+
+# Vector operations
+pgvector = { version = "0.3", features = ["sqlx", "serde"] }
+
+# AWS credential types
+aws-credential-types = "1.0"
