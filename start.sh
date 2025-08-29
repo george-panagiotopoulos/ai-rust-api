@@ -16,6 +16,8 @@ NC='\033[0m' # No Color
 RAGAPI_PORT=9101
 BEDROCKAPI_PORT=9100
 AUTHAPI_PORT=9102
+UICONFIG_PORT=9103
+REACT_APP_PORT=9200
 POSTGRES_CONTAINER_NAME="shared_postgres"
 
 # Function to print colored output
@@ -224,6 +226,39 @@ start_service() {
     cd ../..
 }
 
+# Function to start React app
+start_react_app() {
+    print_status "Starting React app on port $REACT_APP_PORT..."
+    
+    cd useragent
+    
+    # Check if node_modules exist
+    if [ ! -d "node_modules" ]; then
+        print_status "Installing React app dependencies..."
+        npm install
+    fi
+    
+    # Start React app in background
+    npm start > /dev/null 2>&1 &
+    
+    # Wait for React app to start
+    print_status "Waiting for React app to start..."
+    for i in {1..30}; do
+        if check_port $REACT_APP_PORT; then
+            print_success "React app started successfully on port $REACT_APP_PORT"
+            break
+        fi
+        sleep 2
+    done
+    
+    if ! check_port $REACT_APP_PORT; then
+        print_error "React app failed to start on port $REACT_APP_PORT"
+        return 1
+    fi
+    
+    cd ..
+}
+
 # Function to display service information
 show_services() {
     echo
@@ -251,6 +286,10 @@ show_services() {
     echo "   Container: shared_postgres"
     echo "   Database: ragdb"
     echo "   User: raguser"
+    echo
+    echo "🌐 React Web App (User Interface)"
+    echo "   URL: http://localhost:9200"
+    echo "   Features: User registration, chat interface, admin dashboard"
     echo
     echo "📁 Documents Directory"
     echo "   Location: services/RAGAPI/documents/"
@@ -280,6 +319,8 @@ main() {
     print_status "Performing clean restart..."
 
     # Kill existing services
+    kill_port $REACT_APP_PORT "React App"
+    kill_port $UICONFIG_PORT "UIConfigAPI"
     kill_port $RAGAPI_PORT "RAGAPI"
     kill_port $BEDROCKAPI_PORT "BedrockAPI"
     kill_port $AUTHAPI_PORT "AuthAPI"
@@ -296,6 +337,9 @@ main() {
             start_service "AuthAPI" "AuthAPI" $AUTHAPI_PORT
             start_service "BedrockAPI" "BedrockAPI" $BEDROCKAPI_PORT
             start_service "RAGAPI" "RAGAPI" $RAGAPI_PORT
+            # Note: UIConfigAPI requires existing schema - may need manual setup first
+            # start_service "UIConfigAPI" "UIConfigAPI" $UICONFIG_PORT
+            start_react_app
             ;;
         "auth")
             start_service "AuthAPI" "AuthAPI" $AUTHAPI_PORT
@@ -308,8 +352,14 @@ main() {
             start_service "AuthAPI" "AuthAPI" $AUTHAPI_PORT
             start_service "RAGAPI" "RAGAPI" $RAGAPI_PORT
             ;;
+        "ui")
+            start_service "AuthAPI" "AuthAPI" $AUTHAPI_PORT
+            start_service "BedrockAPI" "BedrockAPI" $BEDROCKAPI_PORT
+            start_service "RAGAPI" "RAGAPI" $RAGAPI_PORT
+            start_react_app
+            ;;
         *)
-            print_error "Invalid mode. Use: all, auth, bedrock, or rag"
+            print_error "Invalid mode. Use: all, auth, bedrock, rag, or ui"
             exit 1
             ;;
     esac
@@ -328,7 +378,8 @@ show_help() {
     echo "Usage: $0 [MODE]"
     echo
     echo "Modes:"
-    echo "  all      Start all services (PostgreSQL, AuthAPI, BedrockAPI, RAGAPI) - default"
+    echo "  all      Start all services including React UI - default"
+    echo "  ui       Start all services with React UI"
     echo "  auth     Start only AuthAPI service"
     echo "  bedrock  Start AuthAPI and BedrockAPI services"
     echo "  rag      Start AuthAPI and RAGAPI services"
@@ -341,6 +392,7 @@ show_help() {
     echo "  $0 rag          # Start authentication + document Q&A services"
     echo
     echo "Services:"
+    echo "  - React App: http://localhost:9200 (Web Interface)"
     echo "  - AuthAPI: http://localhost:9102 (Authentication)"
     echo "  - BedrockAPI: http://localhost:9100 (AI Chat)"
     echo "  - RAGAPI: http://localhost:9101 (Document Q&A)"

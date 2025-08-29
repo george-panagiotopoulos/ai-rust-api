@@ -12,6 +12,11 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> anyhow::Result<Self> {
+        // Load global .env file first
+        if let Ok(root_env) = std::path::Path::new("../../.env").canonicalize() {
+            dotenv::from_path(root_env).ok();
+        }
+        // Then load service-specific .env file (if it exists)
         dotenv::dotenv().ok();
 
         let database_url = env::var("DATABASE_URL")

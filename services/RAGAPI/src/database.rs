@@ -30,6 +30,33 @@ pub struct DocumentWithSimilarity {
     pub similarity: f64,
 }
 
+#[derive(Debug, FromRow, Serialize, Deserialize)]
+pub struct RagModel {
+    pub id: i32,
+    pub name: String,
+    pub vector_id: i32,
+    pub system_prompt: String,
+    pub context: Option<String>,
+    pub created_by: Option<i32>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub is_active: bool,
+}
+
+#[derive(Debug, FromRow, Serialize, Deserialize)]
+pub struct VectorInfo {
+    pub id: i32,
+    pub name: String,
+    pub folder_name: String,
+    pub description: Option<String>,
+    pub document_count: Option<i32>,
+    pub embedding_count: Option<i32>,
+    pub created_by: Option<i32>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub is_active: bool,
+}
+
 #[derive(Clone)]
 pub struct Database {
     pool: PgPool,
@@ -207,7 +234,7 @@ impl Database {
     }
 
     pub async fn store_document_embedding(&self, document_id: i32, embedding: &[f32]) -> Result<()> {
-        let query_vector = Vector::from(embedding.to_vec());
+        let query_vector = pgvector::Vector::from(embedding.to_vec());
 
         sqlx::query(
             r#"
@@ -221,5 +248,95 @@ impl Database {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn get_rag_model(&self, rag_model_id: i32) -> Result<Option<RagModel>> {
+        let row = sqlx::query_as::<_, RagModel>(
+            r#"
+            SELECT id, name, vector_id, system_prompt, context, created_by, created_at, updated_at, is_active
+            FROM rag_models
+            WHERE id = $1 AND is_active = true
+            "#,
+        )
+        .bind(rag_model_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    pub async fn search_vector_documents(
+        &self,
+        query_embedding: &[f32],
+        vector_id: i32,
+        limit: i32,
+        similarity_threshold: f64,
+    ) -> Result<Vec<DocumentWithSimilarity>> {
+        use tracing::info;
+
+        info!("Searching for similar documents in vector {} with embedding dimension: {}, limit: {}, threshold: {}",
+              vector_id, query_embedding.len(), limit, similarity_threshold);
+
+        // Convert query embedding to pgvector format
+        let query_vector = pgvector::Vector::from(query_embedding.to_vec());
+
+        // Execute the vector similarity search filtered by vector_id using filename prefix
+        let filename_prefix = format!("{}_", vector_id);
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                d.id, d.filename, d.content, d.file_hash, d.chunk_index,
+                d.created_at, d.updated_at,
+                1 - ((e.embedding <=> $1)/2) as similarity
+            FROM documents d
+            JOIN embeddings e ON d.id = e.document_id
+            WHERE d.filename LIKE $4 
+              AND 1 - ((e.embedding <=> $1)/2) >= $3
+            ORDER BY 1 - ((e.embedding <=> $1)/2) DESC
+            LIMIT $2
+            "#,
+        )
+        .bind(&query_vector)
+        .bind(limit)
+        .bind(similarity_threshold)
+        .bind(format!("{}%", filename_prefix))
+        .fetch_all(&self.pool)
+        .await?;
+
+        info!("Vector-specific search query executed for vector {}, found {} rows", vector_id, rows.len());
+
+        let mut results = Vec::new();
+
+        for row in rows {
+            let id: i32 = row.get("id");
+            let filename: String = row.get("filename");
+            let content: String = row.get("content");
+            let file_hash: String = row.get("file_hash");
+            let chunk_index: i32 = row.get("chunk_index");
+            let created_at: DateTime<Utc> = row.get("created_at");
+            let updated_at: DateTime<Utc> = row.get("updated_at");
+            let similarity: f64 = row.get("similarity");
+
+            let document = Document {
+                id,
+                filename,
+                content,
+                file_hash,
+                chunk_index,
+                created_at,
+                updated_at,
+            };
+
+            info!("Found similar document in vector {}: id={}, filename={}, similarity={:.4}",
+                  vector_id, document.id, document.filename, similarity);
+
+            results.push(DocumentWithSimilarity {
+                document,
+                similarity,
+            });
+        }
+
+        info!("Returning {} similar documents for vector {}", results.len(), vector_id);
+        Ok(results)
     }
 }

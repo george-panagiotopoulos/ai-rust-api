@@ -17,7 +17,7 @@ use axum::{
 use config::Config;
 use database::Database;
 use embeddings::EmbeddingService;
-use handlers::{health, query, search_documents, stats, process_document, generate_embedding, process_stored_document, AppState};
+use handlers::{health, query, search_documents, stats, process_document, generate_embedding, process_stored_document, get_rag_models, AppState};
 use rag::RAGService;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
@@ -96,6 +96,7 @@ async fn main() -> Result<()> {
         .route("/process-document", post(process_document))
         .route("/generate-embedding", post(generate_embedding))
         .route("/process-stored-document", post(process_stored_document))
+        .route("/rag-models", get(get_rag_models))
         .with_state(app_state)
         .layer(ServiceBuilder::new().layer(cors));
 

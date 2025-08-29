@@ -257,6 +257,11 @@ async fn simple_chat(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Load global .env file first
+    if let Ok(root_env) = std::path::Path::new("../../.env").canonicalize() {
+        dotenvy::from_path(root_env).ok();
+    }
+    // Then load service-specific .env file (if it exists)
     dotenvy::dotenv().ok();
     init();
 

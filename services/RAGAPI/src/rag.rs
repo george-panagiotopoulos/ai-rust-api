@@ -43,15 +43,46 @@ impl RAGService {
     pub async fn query(&self, request: RAGRequest, token: &str) -> Result<RAGResponse> {
         info!("Processing RAG query: {}", request.query);
 
-        // Generate embedding for the query
-        let query_embedding = self.embedding_service.get_embedding(&request.query).await?;
-        info!("Generated query embedding with dimension: {}", query_embedding.len());
+        // Get RAG model configuration if specified
+        let (rag_model, similar_docs) = if let Some(rag_model_id) = request.rag_model_id {
+            info!("Using RAG model ID: {}", rag_model_id);
+            
+            // Get RAG model configuration
+            let rag_model = self.database.get_rag_model(rag_model_id).await?;
+            let rag_model = match rag_model {
+                Some(model) => {
+                    info!("Found RAG model: {}", model.name);
+                    model
+                }
+                None => {
+                    return Err(anyhow::anyhow!("RAG model with ID {} not found or inactive", rag_model_id));
+                }
+            };
 
-        // Search for similar documents
-        let similar_docs = self
-            .database
-            .search_similar_documents(&query_embedding, 5, -10.0f64)
-            .await?;
+            // Generate embedding for the query
+            let query_embedding = self.embedding_service.get_embedding(&request.query).await?;
+            info!("Generated query embedding with dimension: {}", query_embedding.len());
+
+            // Search for similar documents within the specified vector
+            let similar_docs = self
+                .database
+                .search_vector_documents(&query_embedding, rag_model.vector_id, 10, -10.0f64)
+                .await?;
+
+            (Some(rag_model), similar_docs)
+        } else {
+            // Generate embedding for the query
+            let query_embedding = self.embedding_service.get_embedding(&request.query).await?;
+            info!("Generated query embedding with dimension: {}", query_embedding.len());
+
+            // Search for similar documents across all documents
+            let similar_docs = self
+                .database
+                .search_similar_documents(&query_embedding, 10, -10.0f64)
+                .await?;
+
+            (None, similar_docs)
+        };
 
         if similar_docs.is_empty() {
             warn!("No relevant documents found for query: {}", request.query);
@@ -73,9 +104,14 @@ impl RAGService {
             // Truncate document content to fit within context limits
             let max_content_length = MAX_CONTEXT_LENGTH / MAX_DOCUMENTS;
             let content = if doc_with_sim.document.content.len() > max_content_length {
-                // Try to find a good breaking point (sentence end)
+                // Find a safe UTF-8 boundary at or before max_content_length
                 let mut truncate_at = max_content_length;
-                if let Some(last_sentence) = doc_with_sim.document.content[..max_content_length]
+                while truncate_at > 0 && !doc_with_sim.document.content.is_char_boundary(truncate_at) {
+                    truncate_at -= 1;
+                }
+                
+                // Try to find a good breaking point (sentence end) within the safe range
+                if let Some(last_sentence) = doc_with_sim.document.content[..truncate_at]
                     .rfind(|c: char| c == '.' || c == '!' || c == '?') {
                     truncate_at = last_sentence + 1;
                 }
@@ -86,7 +122,12 @@ impl RAGService {
             };
 
             let snippet = if content.len() > 300 {
-                format!("{}...", &content[..300])
+                // Find a safe UTF-8 boundary at or before 300 bytes
+                let mut snippet_at = 300;
+                while snippet_at > 0 && !content.is_char_boundary(snippet_at) {
+                    snippet_at -= 1;
+                }
+                format!("{}...", &content[..snippet_at])
             } else {
                 content.clone()
             };
@@ -109,21 +150,37 @@ impl RAGService {
         let retrieved_context = context_parts.join("\n\n---\n\n");
 
         // Combine with user-provided context if any
-        let full_context = match &request.context {
+        let base_context = match &request.context {
             Some(user_context) if !user_context.is_empty() => {
                 format!("{}\n\n---\n\n{}", user_context, retrieved_context)
             }
             _ => retrieved_context.clone(),
         };
 
-        // Build the prompt for the LLM
-        let system_prompt = request.system_prompt.unwrap_or_else(|| {
-            "You are a helpful assistant that answers questions based on the provided context. \
-             Use the context information to provide accurate and relevant answers. \
-             If the context doesn't contain enough information to answer the question, \
-             say so clearly and explain what information is missing."
-                .to_string()
-        });
+        // Add RAG model's context if available
+        let full_context = if let Some(ref model) = rag_model {
+            match &model.context {
+                Some(model_context) if !model_context.is_empty() => {
+                    format!("{}\n\n---\n\n{}", model_context, base_context)
+                }
+                _ => base_context,
+            }
+        } else {
+            base_context
+        };
+
+        // Build the prompt for the LLM - use RAG model's system prompt if available
+        let system_prompt = if let Some(ref model) = rag_model {
+            model.system_prompt.clone()
+        } else {
+            request.system_prompt.unwrap_or_else(|| {
+                "You are a helpful assistant that answers questions based on the provided context. \
+                 Use the context information to provide accurate and relevant answers. \
+                 If the context doesn't contain enough information to answer the question, \
+                 say so clearly and explain what information is missing."
+                    .to_string()
+            })
+        };
 
         let prompt = if full_context.is_empty() {
             format!(

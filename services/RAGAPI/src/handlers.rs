@@ -167,6 +167,7 @@ pub async fn search_documents(
         context: None,
         max_tokens: None,
         temperature: None,
+        rag_model_id: None,
     };
 
     // Use the RAG service's internal methods
@@ -381,4 +382,25 @@ pub async fn process_document(
             ))
         }
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct RagModelsResponse {
+    pub rag_models: Vec<crate::database::RagModel>,
+}
+
+pub async fn get_rag_models(
+    State(app_state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<RagModelsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Extract and validate authentication token
+    let _token = extract_and_validate_token(&app_state.auth_client, &headers).await?;
+
+    info!("Fetching available RAG models");
+
+    // For now, we'll return a simple response indicating that this endpoint exists
+    // In a full implementation, this would query the UIConfigAPI for RAG models
+    Ok(Json(RagModelsResponse {
+        rag_models: vec![],
+    }))
 }

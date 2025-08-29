@@ -24,6 +24,7 @@ pub struct RAGRequest {
     pub context: Option<String>,
     pub max_tokens: Option<u32>,
     pub temperature: Option<f32>,
+    pub rag_model_id: Option<i32>,
 }
 
 pub struct BedrockApiClient {
