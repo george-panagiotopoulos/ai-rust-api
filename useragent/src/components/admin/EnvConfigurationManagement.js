@@ -119,14 +119,23 @@ const EnvConfigurationManagement = () => {
     setEditDialogOpen(true);
   };
 
-  const getServiceIcon = (service) => {
-    switch (service) {
-      case 'Generic': return <StorageIcon sx={{ color: 'primary.main' }} />;
-      case 'AuthAPI': return <SecurityIcon sx={{ color: 'warning.main' }} />;
-      case 'BedrockAPI': return <SettingsIcon sx={{ color: 'info.main' }} />;
-      case 'RAGAPI': return <StorageIcon sx={{ color: 'success.main' }} />;
-      case 'UIConfigAPI': return <SettingsIcon sx={{ color: 'secondary.main' }} />;
+  const getCategoryIcon = (category) => {
+    switch (category) {
+      case 'User Credentials & Models': return <SecurityIcon sx={{ color: 'error.main' }} />;
+      case 'Service URLs & Connectivity': return <StorageIcon sx={{ color: 'info.main' }} />;
+      case 'System Settings': return <SettingsIcon sx={{ color: 'success.main' }} />;
+      case 'Other Configurations': return <SettingsIcon sx={{ color: 'grey.main' }} />;
       default: return <SettingsIcon />;
+    }
+  };
+
+  const getCategoryDescription = (category) => {
+    switch (category) {
+      case 'User Credentials & Models': return 'AWS credentials, API keys, and AI model configurations';
+      case 'Service URLs & Connectivity': return 'Service endpoints, hosts, and port configurations';
+      case 'System Settings': return 'Security settings, timeouts, and system parameters';
+      case 'Other Configurations': return 'Additional configuration options';
+      default: return '';
     }
   };
 
@@ -144,14 +153,62 @@ const EnvConfigurationManagement = () => {
     serviceFilter === 'All' || config.service === serviceFilter
   );
 
-  const groupedConfigs = filteredConfigs.reduce((groups, config) => {
-    const service = config.service;
-    if (!groups[service]) {
-      groups[service] = [];
+  // Group configurations by logical categories instead of just by service
+  const categorizeConfig = (config) => {
+    const key = config.key.toLowerCase();
+    
+    // User-specific settings (AWS keys, models, etc.)
+    if (key.includes('aws') || key.includes('key') || key.includes('secret') || 
+        key.includes('model') || key.includes('embedding') || key.includes('region')) {
+      return 'User Credentials & Models';
     }
-    groups[service].push(config);
+    
+    // Service URLs and endpoints
+    if (key.includes('url') || key.includes('host') || key.includes('port') || key.includes('endpoint')) {
+      return 'Service URLs & Connectivity';
+    }
+    
+    // System settings (bcrypt cost, jwt expiry, etc.)
+    if (key.includes('cost') || key.includes('expiry') || key.includes('timeout') || 
+        key.includes('log') || key.includes('debug') || key.includes('pool') || key.includes('connection')) {
+      return 'System Settings';
+    }
+    
+    // Default category
+    return 'Other Configurations';
+  };
+
+  const groupedConfigs = filteredConfigs.reduce((groups, config) => {
+    const category = categorizeConfig(config);
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+    groups[category].push(config);
     return groups;
   }, {});
+
+  // Define the order of categories
+  const categoryOrder = [
+    'User Credentials & Models',
+    'Service URLs & Connectivity', 
+    'System Settings',
+    'Other Configurations'
+  ];
+
+  // Sort the grouped configs according to the defined order
+  const sortedGroupedConfigs = {};
+  categoryOrder.forEach(category => {
+    if (groupedConfigs[category]) {
+      sortedGroupedConfigs[category] = groupedConfigs[category].sort((a, b) => a.key.localeCompare(b.key));
+    }
+  });
+  
+  // Add any remaining categories that weren't in the predefined order
+  Object.keys(groupedConfigs).forEach(category => {
+    if (!categoryOrder.includes(category)) {
+      sortedGroupedConfigs[category] = groupedConfigs[category].sort((a, b) => a.key.localeCompare(b.key));
+    }
+  });
 
   const services = ['All', ...new Set(configs.map(config => config.service))];
 
@@ -167,7 +224,7 @@ const EnvConfigurationManagement = () => {
     <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
-          Environment Configuration
+          Environment Variables
         </Typography>
         <Box>
           <Button
@@ -194,7 +251,7 @@ const EnvConfigurationManagement = () => {
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="body1" color="textSecondary">
-          Manage configuration values across all microservices. Changes are applied to .env files automatically.
+          Manage environment variables across all microservices. Variables are grouped by type: user-specific settings, service URLs, and system settings.
         </Typography>
         <FormControl sx={{ minWidth: 120 }}>
           <InputLabel>Service</InputLabel>
@@ -211,20 +268,33 @@ const EnvConfigurationManagement = () => {
         </FormControl>
       </Box>
 
-      {Object.entries(groupedConfigs).map(([service, serviceConfigs]) => (
-        <Accordion key={service} defaultExpanded={service === 'Generic'} sx={{ mb: 2 }}>
+      {Object.entries(sortedGroupedConfigs).map(([category, categoryConfigs]) => (
+        <Accordion key={category} defaultExpanded={category === 'User Credentials & Models'} sx={{ mb: 2 }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Box display="flex" alignItems="center" sx={{ width: '100%' }}>
-              {getServiceIcon(service)}
-              <Typography variant="h6" sx={{ ml: 1, flexGrow: 1 }}>
-                {service} ({serviceConfigs.length} configs)
-              </Typography>
+              {getCategoryIcon(category)}
+              <Box sx={{ ml: 1, flexGrow: 1 }}>
+                <Typography variant="h6">
+                  {category} ({categoryConfigs.length} variables)
+                </Typography>
+                <Typography variant="caption" color="textSecondary">
+                  {getCategoryDescription(category)}
+                </Typography>
+              </Box>
               <Box sx={{ mr: 2 }}>
-                {serviceConfigs.filter(c => c.required && !c.current_value).length > 0 && (
+                {categoryConfigs.filter(c => c.required && !c.current_value).length > 0 && (
                   <Chip 
-                    label={`${serviceConfigs.filter(c => c.required && !c.current_value).length} Missing`}
+                    label={`${categoryConfigs.filter(c => c.required && !c.current_value).length} Missing`}
                     color="error" 
                     size="small" 
+                  />
+                )}
+                {categoryConfigs.filter(c => c.sensitive).length > 0 && (
+                  <Chip 
+                    label={`${categoryConfigs.filter(c => c.sensitive).length} Sensitive`}
+                    color="warning" 
+                    size="small"
+                    sx={{ ml: 1 }}
                   />
                 )}
               </Box>
@@ -236,6 +306,7 @@ const EnvConfigurationManagement = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>Key</TableCell>
+                    <TableCell>Service</TableCell>
                     <TableCell>Description</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Current Value</TableCell>
@@ -244,7 +315,7 @@ const EnvConfigurationManagement = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {serviceConfigs.map((config) => (
+                  {categoryConfigs.map((config) => (
                     <TableRow key={config.key}>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
@@ -256,6 +327,20 @@ const EnvConfigurationManagement = () => {
                         {config.sensitive && (
                           <Chip label="Sensitive" color="error" size="small" sx={{ ml: 1 }} />
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={config.service} 
+                          size="small" 
+                          variant="outlined"
+                          color={
+                            config.service === 'AuthAPI' ? 'warning' :
+                            config.service === 'BedrockAPI' ? 'info' :
+                            config.service === 'RAGAPI' ? 'success' :
+                            config.service === 'UIConfigAPI' ? 'secondary' :
+                            'default'
+                          }
+                        />
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ maxWidth: 300 }}>
