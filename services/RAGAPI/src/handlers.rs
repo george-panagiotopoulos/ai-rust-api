@@ -21,8 +21,11 @@ async fn extract_and_validate_token(auth_client: &AuthClient, headers: &HeaderMa
             (
                 StatusCode::UNAUTHORIZED,
                 Json(ErrorResponse {
-                    error: "missing_auth_header".to_string(),
-                    message: "Missing authorization header".to_string(),
+                    error: ErrorDetails {
+                        code: "MISSING_AUTH_HEADER".to_string(),
+                        message: "Missing authorization header".to_string(),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
                 }),
             )
         })?;
@@ -31,8 +34,11 @@ async fn extract_and_validate_token(auth_client: &AuthClient, headers: &HeaderMa
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(ErrorResponse {
-                error: "invalid_auth_format".to_string(),
-                message: "Invalid authorization header format".to_string(),
+                error: ErrorDetails {
+                    code: "INVALID_AUTH_FORMAT".to_string(),
+                    message: "Invalid authorization header format".to_string(),
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                },
             }),
         ));
     }
@@ -47,8 +53,11 @@ async fn extract_and_validate_token(auth_client: &AuthClient, headers: &HeaderMa
         Ok(_) => Err((
             StatusCode::UNAUTHORIZED,
             Json(ErrorResponse {
-                error: "invalid_token".to_string(),
-                message: "Invalid or expired token".to_string(),
+                error: ErrorDetails {
+                    code: "INVALID_TOKEN".to_string(),
+                    message: "Invalid or expired token".to_string(),
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                },
             }),
         )),
         Err(e) => {
@@ -56,8 +65,11 @@ async fn extract_and_validate_token(auth_client: &AuthClient, headers: &HeaderMa
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: "validation_error".to_string(),
-                    message: "Failed to validate token".to_string(),
+                    error: ErrorDetails {
+                        code: "VALIDATION_ERROR".to_string(),
+                        message: "Failed to validate token".to_string(),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
                 }),
             ))
         }
@@ -84,8 +96,14 @@ pub struct HealthResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
-    pub error: String,
+    pub error: ErrorDetails,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorDetails {
+    pub code: String,
     pub message: String,
+    pub timestamp: String,
 }
 
 
@@ -114,8 +132,11 @@ pub async fn stats(
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: "stats_failed".to_string(),
-                    message: e.to_string(),
+                    error: ErrorDetails {
+                        code: "STATS_FAILED".to_string(),
+                        message: e.to_string(),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
                 }),
             ))
         }
@@ -142,8 +163,11 @@ pub async fn query(
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: "query_failed".to_string(),
-                    message: e.to_string(),
+                    error: ErrorDetails {
+                        code: "QUERY_FAILED".to_string(),
+                        message: e.to_string(),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
                 }),
             ))
         }
@@ -167,7 +191,7 @@ pub async fn search_documents(
         context: None,
         max_tokens: None,
         temperature: None,
-        rag_model_id: None,
+        rag_model_name: None,
     };
 
     // Use the RAG service's internal methods
@@ -197,8 +221,11 @@ pub async fn search_documents(
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: "search_failed".to_string(),
-                    message: e.to_string(),
+                    error: ErrorDetails {
+                        code: "SEARCH_FAILED".to_string(),
+                        message: e.to_string(),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
                 }),
             ))
         }
@@ -262,8 +289,11 @@ pub async fn generate_embedding(
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: "embedding_failed".to_string(),
-                    message: format!("Failed to generate embedding: {}", e),
+                    error: ErrorDetails {
+                        code: "EMBEDDING_FAILED".to_string(),
+                        message: format!("Failed to generate embedding: {}", e),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
                 }),
             ))
         }
@@ -313,8 +343,11 @@ pub async fn process_stored_document(
                             Err((
                                 StatusCode::INTERNAL_SERVER_ERROR,
                                 Json(ErrorResponse {
-                                    error: "storage_failed".to_string(),
-                                    message: format!("Failed to store embedding: {}", e),
+                                    error: ErrorDetails {
+                                        code: "STORAGE_FAILED".to_string(),
+                                        message: format!("Failed to store embedding: {}", e),
+                                        timestamp: chrono::Utc::now().to_rfc3339(),
+                                    },
                                 }),
                             ))
                         }
@@ -325,8 +358,11 @@ pub async fn process_stored_document(
                     Err((
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(ErrorResponse {
-                            error: "embedding_failed".to_string(),
-                            message: format!("Failed to generate embedding: {}", e),
+                            error: ErrorDetails {
+                                code: "EMBEDDING_FAILED".to_string(),
+                                message: format!("Failed to generate embedding: {}", e),
+                                timestamp: chrono::Utc::now().to_rfc3339(),
+                            },
                         }),
                     ))
                 }
@@ -336,8 +372,11 @@ pub async fn process_stored_document(
             Err((
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
-                    error: "document_not_found".to_string(),
-                    message: format!("Document with ID {} not found", request.document_id),
+                    error: ErrorDetails {
+                        code: "DOCUMENT_NOT_FOUND".to_string(),
+                        message: format!("Document with ID {} not found", request.document_id),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
                 }),
             ))
         }
@@ -346,8 +385,11 @@ pub async fn process_stored_document(
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: "database_error".to_string(),
-                    message: format!("Failed to retrieve document: {}", e),
+                    error: ErrorDetails {
+                        code: "DATABASE_ERROR".to_string(),
+                        message: format!("Failed to retrieve document: {}", e),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
                 }),
             ))
         }
@@ -376,8 +418,11 @@ pub async fn process_document(
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: "processing_failed".to_string(),
-                    message: format!("Failed to process document: {}", e),
+                    error: ErrorDetails {
+                        code: "PROCESSING_FAILED".to_string(),
+                        message: format!("Failed to process document: {}", e),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
                 }),
             ))
         }

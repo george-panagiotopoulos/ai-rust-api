@@ -44,18 +44,18 @@ impl RAGService {
         info!("Processing RAG query: {}", request.query);
 
         // Get RAG model configuration if specified
-        let (rag_model, similar_docs) = if let Some(rag_model_id) = request.rag_model_id {
-            info!("Using RAG model ID: {}", rag_model_id);
+        let (rag_model, similar_docs) = if let Some(rag_model_name) = request.rag_model_name {
+            info!("Using RAG model name: {}", rag_model_name);
             
-            // Get RAG model configuration
-            let rag_model = self.database.get_rag_model(rag_model_id).await?;
+            // Get RAG model configuration by name
+            let rag_model = self.database.get_rag_model_by_name(&rag_model_name).await?;
             let rag_model = match rag_model {
                 Some(model) => {
                     info!("Found RAG model: {}", model.name);
                     model
                 }
                 None => {
-                    return Err(anyhow::anyhow!("RAG model with ID {} not found or inactive", rag_model_id));
+                    return Err(anyhow::anyhow!("RAG model with name '{}' not found or inactive", rag_model_name));
                 }
             };
 

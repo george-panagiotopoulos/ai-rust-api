@@ -22,14 +22,36 @@ import {
   Switch,
   FormControlLabel,
   Chip,
-  Tooltip
+  Tooltip,
+  Tabs,
+  Tab
 } from '@mui/material';
-import { Logout, Send, SmartToy, Chat, Psychology } from '@mui/icons-material';
+import { Logout, Send, SmartToy, Chat, Psychology, Api as ApiIcon } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import ApiDocumentation from './ApiDocumentation';
 import axios from 'axios';
+
+function TabPanel({ children, value, index, ...other }) {
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`user-tabpanel-${index}`}
+      aria-labelledby={`user-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+}
 
 const UserDashboard = () => {
   const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState(0);
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -176,6 +198,10 @@ const UserDashboard = () => {
     }
   };
 
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
   const formatTime = (timestamp) => {
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
@@ -185,15 +211,17 @@ const UserDashboard = () => {
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Chat Dashboard - Welcome, {user?.username}
+            User Dashboard - Welcome, {user?.username}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Chip 
-              icon={ragMode ? <Psychology /> : <Chat />}
-              label={ragMode ? 'RAG Mode' : 'Regular Chat'}
-              color={ragMode ? 'secondary' : 'default'}
-              variant={ragMode ? 'filled' : 'outlined'}
-            />
+            {activeTab === 0 && (
+              <Chip 
+                icon={ragMode ? <Psychology /> : <Chat />}
+                label={ragMode ? 'RAG Mode' : 'Regular Chat'}
+                color={ragMode ? 'secondary' : 'default'}
+                variant={ragMode ? 'filled' : 'outlined'}
+              />
+            )}
             <IconButton
               size="large"
               edge="end"
@@ -206,7 +234,31 @@ const UserDashboard = () => {
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+        <Paper elevation={3}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
+          >
+            <Tab 
+              label="Chat" 
+              icon={<Chat />} 
+              iconPosition="start"
+              id="user-tab-0"
+              aria-controls="user-tabpanel-0"
+            />
+            <Tab 
+              label="API Documentation" 
+              icon={<ApiIcon />} 
+              iconPosition="start"
+              id="user-tab-1"
+              aria-controls="user-tabpanel-1"
+            />
+          </Tabs>
+
+          <TabPanel value={activeTab} index={0}>
+            <Container maxWidth="md" sx={{ p: 0 }}>
         {/* RAG Configuration Panel */}
         <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
@@ -397,6 +449,13 @@ const UserDashboard = () => {
               </Button>
             </Box>
           </Box>
+        </Paper>
+            </Container>
+          </TabPanel>
+
+          <TabPanel value={activeTab} index={1}>
+            <ApiDocumentation />
+          </TabPanel>
         </Paper>
       </Container>
     </Box>

@@ -34,43 +34,46 @@ pub enum AuthError {
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> axum::response::Response {
-        let (status, error_message) = match self {
+        let (status, error_code, error_message) = match self {
             AuthError::Database(e) => {
                 tracing::error!("Database error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error occurred")
+                (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR", "Database error occurred")
             }
             AuthError::Jwt(e) => {
                 tracing::error!("JWT error: {}", e);
-                (StatusCode::UNAUTHORIZED, "Invalid or expired token")
+                (StatusCode::UNAUTHORIZED, "JWT_ERROR", "Invalid or expired token")
             }
             AuthError::BCrypt(e) => {
                 tracing::error!("BCrypt error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Password processing error")
+                (StatusCode::INTERNAL_SERVER_ERROR, "BCRYPT_ERROR", "Password processing error")
             }
             AuthError::Validation(ref e) => {
-                (StatusCode::BAD_REQUEST, e.as_str())
+                (StatusCode::BAD_REQUEST, "VALIDATION_ERROR", e.as_str())
             }
             AuthError::Unauthorized(ref e) => {
-                (StatusCode::UNAUTHORIZED, e.as_str())
+                (StatusCode::UNAUTHORIZED, "UNAUTHORIZED", e.as_str())
             }
             AuthError::NotFound(ref e) => {
-                (StatusCode::NOT_FOUND, e.as_str())
+                (StatusCode::NOT_FOUND, "NOT_FOUND", e.as_str())
             }
             AuthError::Conflict(ref e) => {
-                (StatusCode::CONFLICT, e.as_str())
+                (StatusCode::CONFLICT, "CONFLICT", e.as_str())
             }
             AuthError::Internal(ref e) => {
                 tracing::error!("Internal error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, e.as_str())
+                (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", e.as_str())
             }
             AuthError::BadRequest(ref e) => {
-                (StatusCode::BAD_REQUEST, e.as_str())
+                (StatusCode::BAD_REQUEST, "BAD_REQUEST", e.as_str())
             }
         };
 
         let body = Json(json!({
-            "error": error_message,
-            "status": status.as_u16()
+            "error": {
+                "code": error_code,
+                "message": error_message,
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            }
         }));
 
         (status, body).into_response()

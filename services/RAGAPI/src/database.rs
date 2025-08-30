@@ -339,4 +339,18 @@ impl Database {
         info!("Returning {} similar documents for vector {}", results.len(), vector_id);
         Ok(results)
     }
+
+    pub async fn get_rag_model_by_name(&self, rag_model_name: &str) -> Result<Option<RagModel>> {
+        let row = sqlx::query_as::<_, RagModel>(
+            r#"
+            SELECT id, name, vector_id, system_prompt, context, created_by, created_at, updated_at, is_active
+            FROM rag_models
+            WHERE name = $1 AND is_active = true
+            "#,
+        )
+        .bind(rag_model_name)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row)
+    }
 }

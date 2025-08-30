@@ -20,7 +20,8 @@ import {
   FolderOpen,
   Dashboard as DashboardIcon,
   Storage as VectorIcon,
-  SmartToy as RagModelIcon
+  SmartToy as RagModelIcon,
+  Api as ApiIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import UserManagement from './admin/UserManagement';
@@ -29,6 +30,7 @@ import DocumentManagement from './admin/DocumentManagement';
 import VectorManagement from './admin/VectorManagement';
 import RagModelManagement from './admin/RagModelManagement';
 import AdminDashboardOverview from './admin/AdminDashboard';
+import ApiDocumentation from './ApiDocumentation';
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -125,6 +127,13 @@ const AdminDashboard = () => {
               id="admin-tab-5"
               aria-controls="admin-tabpanel-5"
             />
+            <Tab 
+              label="API Documentation" 
+              icon={<ApiIcon />} 
+              iconPosition="start"
+              id="admin-tab-6"
+              aria-controls="admin-tabpanel-6"
+            />
           </Tabs>
 
           <TabPanel value={tabValue} index={0}>
@@ -149,6 +158,10 @@ const AdminDashboard = () => {
 
           <TabPanel value={tabValue} index={5}>
             <RagModelManagement />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={6}>
+            <ApiDocumentation />
           </TabPanel>
         </Paper>
       </Container>
