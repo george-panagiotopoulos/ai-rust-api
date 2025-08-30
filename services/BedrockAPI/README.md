@@ -4,39 +4,37 @@ AI chat completion microservice built with Rust, providing JWT-authenticated acc
 
 ## 🚀 Features
 
-- **JWT Authentication**: Secure token-based authentication
-- **AWS Bedrock Integration**: Access to Claude and other Bedrock models
+- **JWT Token Validation**: Validates tokens issued by AuthAPI service
+- **AWS Bedrock Integration**: Access to Claude and other Bedrock models  
 - **REST API**: Clean HTTP endpoints for chat completion
-- **Error Handling**: Comprehensive error responses
+- **Standardized Error Handling**: Consistent error response format
 - **Health Checks**: Service monitoring endpoint
+- **Service Integration**: Seamlessly integrated with AuthAPI for authentication
 
 ## 📡 API Endpoints
 
-### Authentication
-- `POST /oauth/token` - Get JWT access token
-  ```bash
-  curl -X POST http://localhost:9100/oauth/token \
-    -H "Content-Type: application/json" \
-    -d '{"username": "admin", "password": "password"}'
-  ```
-
 ### Chat Completion
-- `POST /chat` - Authenticated chat completion
-- `POST /simple-chat` - Simple chat without authentication
+- `POST /chat` - Standard chat with conversation ID
+- `POST /simple-chat` - Advanced chat with configurable parameters
 
-### Monitoring
+### Monitoring  
 - `GET /health` - Service health check
+
+**Note**: Authentication is now handled by AuthAPI (port 9102). Get your JWT token from AuthAPI first.
 
 ## 🔧 Configuration
 
 ### Environment Variables (.env)
 ```bash
-# JWT Configuration
+# JWT Configuration (must match AuthAPI)
 JWT_SECRET=your_super_secret_jwt_key_here
 
 # Server Configuration
 HOST=127.0.0.1
 PORT=9100
+
+# AuthAPI Integration
+AUTH_API_URL=http://127.0.0.1:9102
 
 # AWS Bedrock
 AWS_ACCESS_KEY_ID=your_access_key
@@ -44,37 +42,41 @@ AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=us-east-1
 ```
 
-### Default Credentials
-- **Username**: admin
-- **Password**: password
+### Authentication
+Get JWT tokens from AuthAPI (port 9102):
+- **Default Admin**: username=admin, password=password
+- **Endpoint**: `POST http://localhost:9102/login`
 
 ## 🚀 Usage Examples
 
-### Simple Chat (No Auth)
+### Get Authentication Token (from AuthAPI)
 ```bash
-curl -X POST http://localhost:9100/simple-chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Explain quantum computing in simple terms",
-    "max_tokens": 500,
-    "temperature": 0.7
-  }'
-```
-
-### Authenticated Chat
-```bash
-# 1. Get token
-TOKEN=$(curl -X POST http://localhost:9100/oauth/token \
+# Get JWT token from AuthAPI
+TOKEN=$(curl -X POST http://localhost:9102/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "password"}' | jq -r .access_token)
+```
 
-# 2. Use token for chat
+### Standard Chat
+```bash
 curl -X POST http://localhost:9100/chat \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "message": "Write a haiku about programming",
-    "max_tokens": 200
+    "message": "Write a haiku about programming"
+  }'
+```
+
+### Advanced Chat with Parameters
+```bash
+curl -X POST http://localhost:9100/simple-chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "prompt": "Explain quantum computing in simple terms",
+    "max_tokens": 500,
+    "temperature": 0.7,
+    "top_p": 0.9
   }'
 ```
 
@@ -117,7 +119,12 @@ curl -X POST http://localhost:9100/simple-chat \
 
 ## 🔗 Integration
 
-This service is designed to work with RAGAPI for providing AI chat completion capabilities. The RAGAPI service communicates with BedrockAPI for generating answers based on retrieved document context.
+This service is part of the AI-Rust-API microservices architecture:
+
+- **AuthAPI (9102)**: Handles authentication and issues JWT tokens
+- **RAGAPI (9101)**: Sends document context and queries to BedrockAPI for answer generation  
+- **UIConfigAPI (9103)**: Provides admin interface and system configuration
+- **React Frontend**: Complete user interface for all system features
 
 ## 📝 API Specification
 

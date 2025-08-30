@@ -4,45 +4,27 @@ User authentication and authorization microservice built with Rust, providing JW
 
 ## 🚀 Features
 
-- **User Registration**: Account creation for new users
-- **JWT Authentication**: Secure token-based authentication
-- **Role-Based Access Control**: Admin and regular user roles
-- **Token Validation**: Service-to-service token verification
-- **Database Integration**: PostgreSQL storage for user data
-- **Password Security**: bcrypt hashing for secure password storage
-- **Health Checks**: Service monitoring endpoint
+- **JWT Authentication**: Secure token-based authentication with configurable expiration
+- **User Management**: Registration, login, profile management, logout
+- **Role-Based Access Control**: Admin and regular user roles with permissions
+- **Token Validation**: Service-to-service token verification for all microservices
+- **Session Management**: User activity tracking and authentication statistics
+- **Password Security**: BCrypt hashing with secure password storage
+- **Standardized Error Handling**: Consistent `{error: {code, message, timestamp}}` format
+- **Database Integration**: PostgreSQL storage with user data persistence
+- **Health Checks**: Comprehensive service monitoring endpoint
 
 ## 📡 API Endpoints
 
-### User Management
-- `POST /register` - Create new user account
-  ```bash
-  curl -X POST http://localhost:9102/register \
-    -H "Content-Type: application/json" \
-    -d '{
-      "username": "newuser",
-      "email": "user@example.com",
-      "password": "securepassword"
-    }'
-  ```
-
-- `POST /login` - User authentication
-  ```bash
-  curl -X POST http://localhost:9102/login \
-    -H "Content-Type: application/json" \
-    -d '{
-      "username": "admin",
-      "password": "password"
-    }'
-  ```
-
-### Token Validation
+### Authentication
+- `POST /login` - User authentication with JWT token generation
+- `POST /register` - Create new user account  
+- `POST /logout` - Invalidate JWT token (authenticated)
 - `POST /validate` - Validate JWT tokens (used by other services)
-  ```bash
-  curl -X POST http://localhost:9102/validate \
-    -H "Content-Type: application/json" \
-    -d '{"token": "your_jwt_token_here"}'
-  ```
+
+### User Management  
+- `GET /profile` - Get current user profile (authenticated)
+- `GET /stats` - Get authentication service statistics
 
 ### Monitoring
 - `GET /health` - Service health check
@@ -147,10 +129,12 @@ curl -X POST http://localhost:9102/login \
 
 ## 🔗 Integration
 
-This service integrates with:
-- **UIConfigAPI**: Validates admin tokens for management operations
-- **RAGAPI**: Validates user tokens for RAG queries
-- **User Interface**: Provides authentication for the React frontend
+AuthAPI is the central authentication service for the AI-Rust-API microservices system:
+
+- **BedrockAPI (9100)**: Validates JWT tokens for AI chat completion endpoints
+- **RAGAPI (9101)**: Validates JWT tokens for RAG queries and document operations
+- **UIConfigAPI (9103)**: Validates admin tokens for management operations and system configuration
+- **React Frontend**: Provides authentication UI and token management for all user interactions
 
 ## 📝 API Specification
 

@@ -4,22 +4,29 @@ Retrieval-Augmented Generation microservice built with Rust, providing intellige
 
 ## 🚀 Features
 
-- **Automatic Document Embedding**: AWS Titan embeddings with fallback
+- **RAG Model Management**: Named models (e.g., "Microservices", "DistributedSystems")
 - **Vector Similarity Search**: pgvector-powered document retrieval
-- **RAG Pipeline**: Context-aware question answering
-- **Document Management**: Automatic ingestion and storage
-- **REST API**: Clean HTTP endpoints for Q&A
+- **Document Processing**: Multiple ingestion methods (filesystem, API uploads)
+- **JWT Authentication**: Integrated with AuthAPI for secure access
+- **Standardized Error Handling**: Consistent error response format
+- **REST API**: Clean HTTP endpoints for Q&A and document management
 - **Health Monitoring**: Service statistics and health checks
 
 ## 📡 API Endpoints
 
-### Core Functionality
-- `POST /query` - Ask questions with RAG retrieval
+### Core RAG Functionality
+- `POST /query` - Ask questions with RAG retrieval using model names
 - `POST /search` - Search documents by vector similarity
+- `GET /rag-models` - Get available RAG models
+
+### Document Management
+- `POST /process-document` - Process and embed documents
+- `POST /process-stored-document` - Process documents already in database
+- `POST /generate-embedding` - Generate embeddings for text
 
 ### Monitoring
 - `GET /health` - Service health check
-- `GET /stats` - System statistics (document count, embedding count)
+- `GET /stats` - System statistics (authenticated)
 
 ## 🔧 Configuration
 
@@ -32,8 +39,9 @@ DATABASE_URL=postgresql://raguser:password@localhost:5434/ragdb
 HOST=127.0.0.1
 PORT=9101
 
-# BedrockAPI Integration
+# Service Integration
 BEDROCK_API_URL=http://127.0.0.1:9100
+AUTH_API_URL=http://127.0.0.1:9102
 
 # AWS Configuration (Optional - uses mock embeddings if unavailable)
 AWS_ACCESS_KEY_ID=your_access_key
