@@ -371,15 +371,43 @@ const ApiDocumentation = () => {
             embedding: 'array of numbers',
             dimension: 'number'
           }
+        },
+        {
+          method: 'POST',
+          path: '/process-stored-document',
+          name: 'Process Stored Document',
+          description: 'Process a document that is already stored in the database',
+          auth: false,
+          request: {
+            document_id: 'number (required)'
+          },
+          response: {
+            success: 'boolean',
+            document_id: 'number',
+            embedding_generated: 'boolean',
+            message: 'string'
+          }
+        },
+        {
+          method: 'GET',
+          path: '/rag-models',
+          name: 'Get RAG Models',
+          description: 'Get available RAG models',
+          auth: true,
+          request: null,
+          response: {
+            rag_models: 'array of RAG model objects'
+          }
         }
       ]
     },
     uiConfigApi: {
-      name: 'UI Config API',
+      name: 'UI Configuration API (Port 9103)',
       baseUrl: 'http://localhost:9103',
-      description: 'Configuration and administration service',
+      description: 'Configuration and administration service for the AI-Rust-API system',
       icon: <SettingsIcon />,
       endpoints: [
+        // Public Endpoints
         {
           method: 'GET',
           path: '/health',
@@ -396,8 +424,8 @@ const ApiDocumentation = () => {
         {
           method: 'POST',
           path: '/auth/register',
-          name: 'User Registration',
-          description: 'Register a new user',
+          name: 'Register User',
+          description: 'Register a new user account',
           auth: false,
           request: {
             username: 'string (required)',
@@ -410,9 +438,23 @@ const ApiDocumentation = () => {
           }
         },
         {
+          method: 'POST',
+          path: '/auth/chat',
+          name: 'Chat',
+          description: 'Chat with AI assistant',
+          auth: false,
+          request: {
+            message: 'string (required)'
+          },
+          response: {
+            response: 'string'
+          }
+        },
+        // User Endpoints
+        {
           method: 'GET',
           path: '/rag-models',
-          name: 'List RAG Models',
+          name: 'Get Public RAG Models',
           description: 'Get available RAG models for users',
           auth: true,
           request: null,
@@ -420,57 +462,451 @@ const ApiDocumentation = () => {
             rag_models: 'array of RAG model objects'
           }
         },
+        // Admin Dashboard
         {
           method: 'GET',
           path: '/admin/overview',
           name: 'Admin Overview',
-          description: 'Get system overview statistics',
-          auth: true,
-          adminOnly: true,
+          description: 'Get admin dashboard overview data',
+          auth: 'admin',
           request: null,
           response: {
-            total_users: 'number',
-            admin_users: 'number',
-            total_configs: 'number'
+            stats: 'object with system statistics'
           }
         },
         {
           method: 'GET',
           path: '/admin/system/health',
           name: 'System Health',
-          description: 'Get detailed system health information',
-          auth: true,
-          adminOnly: true,
+          description: 'Get comprehensive system health information',
+          auth: 'admin',
           request: null,
           response: {
-            status: 'string',
-            uptime: 'number',
-            database_connection: 'boolean',
-            external_services: 'object'
+            services: 'object with service health status',
+            database: 'object with database status'
           }
         },
         {
           method: 'GET',
+          path: '/admin/system/stats',
+          name: 'System Stats',
+          description: 'Get detailed system statistics',
+          auth: 'admin',
+          request: null,
+          response: {
+            uptime: 'string',
+            memory_usage: 'object',
+            cpu_usage: 'number'
+          }
+        },
+        // User Management
+        {
+          method: 'GET',
           path: '/admin/users',
           name: 'List Users',
-          description: 'Get all users (admin only)',
-          auth: true,
-          adminOnly: true,
+          description: 'Get all users in the system',
+          auth: 'admin',
           request: null,
           response: {
             users: 'array of user objects'
           }
         },
         {
+          method: 'POST',
+          path: '/admin/users',
+          name: 'Create Admin User',
+          description: 'Create a new admin user',
+          auth: 'admin',
+          request: {
+            username: 'string (required)',
+            email: 'string (required)',
+            password: 'string (required)',
+            is_admin: 'boolean'
+          },
+          response: {
+            success: 'boolean',
+            user_id: 'number'
+          }
+        },
+        {
+          method: 'GET',
+          path: '/admin/users/:id',
+          name: 'Get User by ID',
+          description: 'Get specific user by ID',
+          auth: 'admin',
+          request: null,
+          response: {
+            user: 'user object'
+          }
+        },
+        {
+          method: 'PUT',
+          path: '/admin/users/:id',
+          name: 'Update User',
+          description: 'Update user information',
+          auth: 'admin',
+          request: {
+            is_active: 'boolean (optional)',
+            is_admin: 'boolean (optional)'
+          },
+          response: {
+            success: 'boolean',
+            message: 'string'
+          }
+        },
+        {
+          method: 'DELETE',
+          path: '/admin/users/:id',
+          name: 'Delete User',
+          description: 'Delete a user account',
+          auth: 'admin',
+          request: null,
+          response: {
+            success: 'boolean',
+            message: 'string'
+          }
+        },
+        {
+          method: 'GET',
+          path: '/admin/users/:id/chat-history',
+          name: 'Get User Chat History',
+          description: 'Get chat history for a specific user',
+          auth: 'admin',
+          request: null,
+          response: {
+            user_id: 'number',
+            chat_history: 'array of chat records'
+          }
+        },
+        // Configuration Management (Legacy)
+        {
+          method: 'GET',
+          path: '/admin/configs',
+          name: 'List Configs',
+          description: 'Get all configuration entries',
+          auth: 'admin',
+          request: null,
+          response: {
+            configs: 'array of config objects'
+          }
+        },
+        {
+          method: 'POST',
+          path: '/admin/configs',
+          name: 'Create Config',
+          description: 'Create a new configuration entry',
+          auth: 'admin',
+          request: {
+            key: 'string (required)',
+            value: 'string (required)',
+            description: 'string (optional)'
+          },
+          response: {
+            success: 'boolean',
+            message: 'string',
+            key: 'string'
+          }
+        },
+        {
+          method: 'GET',
+          path: '/admin/configs/backup',
+          name: 'Backup Configs',
+          description: 'Create backup of all configurations',
+          auth: 'admin',
+          request: null,
+          response: {
+            backup_data: 'array of config objects',
+            backup_timestamp: 'string (ISO datetime)',
+            total_configs: 'number'
+          }
+        },
+        {
+          method: 'GET',
+          path: '/admin/configs/:key',
+          name: 'Get Config by Key',
+          description: 'Get specific configuration by key',
+          auth: 'admin',
+          request: null,
+          response: {
+            config: 'config object'
+          }
+        },
+        {
+          method: 'PUT',
+          path: '/admin/configs/:key',
+          name: 'Update Config',
+          description: 'Update configuration entry',
+          auth: 'admin',
+          request: {
+            value: 'string (required)',
+            description: 'string (optional)'
+          },
+          response: {
+            success: 'boolean',
+            message: 'string'
+          }
+        },
+        {
+          method: 'DELETE',
+          path: '/admin/configs/:key',
+          name: 'Delete Config',
+          description: 'Delete configuration entry',
+          auth: 'admin',
+          request: null,
+          response: {
+            success: 'boolean',
+            message: 'string'
+          }
+        },
+        // Environment Configuration
+        {
+          method: 'GET',
+          path: '/admin/env-configs',
+          name: 'List Environment Configs',
+          description: 'Get all environment configuration files',
+          auth: 'admin',
+          request: null,
+          response: {
+            configs: 'array of environment config objects'
+          }
+        },
+        {
+          method: 'GET',
+          path: '/admin/env-configs/validate',
+          name: 'Validate Environment Configs',
+          description: 'Validate all environment configuration files',
+          auth: 'admin',
+          request: null,
+          response: {
+            validation_results: 'array of validation objects'
+          }
+        },
+        {
+          method: 'PUT',
+          path: '/admin/env-configs/update',
+          name: 'Update Environment Config',
+          description: 'Update environment configuration',
+          auth: 'admin',
+          request: {
+            key: 'string (required)',
+            value: 'string (required)'
+          },
+          response: {
+            success: 'boolean',
+            message: 'string',
+            updated_files: 'array of filenames'
+          }
+        },
+        {
+          method: 'GET',
+          path: '/admin/env-configs/:key',
+          name: 'Get Environment Config by Key',
+          description: 'Get specific environment configuration by key',
+          auth: 'admin',
+          request: null,
+          response: {
+            key: 'string',
+            value: 'string',
+            files: 'array of filenames'
+          }
+        },
+        // Document Management
+        {
+          method: 'GET',
+          path: '/admin/documents/folders',
+          name: 'List Folders',
+          description: 'Get all document folders',
+          auth: 'admin',
+          request: null,
+          response: {
+            folders: 'array of folder objects'
+          }
+        },
+        {
+          method: 'POST',
+          path: '/admin/documents/folders',
+          name: 'Create Folder',
+          description: 'Create a new document folder',
+          auth: 'admin',
+          request: {
+            name: 'string (required)'
+          },
+          response: {
+            success: 'boolean',
+            message: 'string',
+            folder_name: 'string',
+            folder_path: 'string'
+          }
+        },
+        {
+          method: 'GET',
+          path: '/admin/documents/folders/:folder/documents',
+          name: 'List Documents in Folder',
+          description: 'Get all documents in a specific folder',
+          auth: 'admin',
+          request: null,
+          response: {
+            documents: 'array of document objects'
+          }
+        },
+        {
+          method: 'POST',
+          path: '/admin/documents/folders/:folder/upload',
+          name: 'Upload Document',
+          description: 'Upload a document to a specific folder',
+          auth: 'admin',
+          request: {
+            file: 'multipart form data (required)'
+          },
+          response: {
+            success: 'boolean',
+            message: 'string',
+            uploaded_files: 'array of uploaded file objects'
+          }
+        },
+        {
+          method: 'DELETE',
+          path: '/admin/documents/folders/:folder/documents/:filename',
+          name: 'Delete Document',
+          description: 'Delete a specific document',
+          auth: 'admin',
+          request: null,
+          response: {
+            success: 'boolean',
+            message: 'string'
+          }
+        },
+        {
+          method: 'DELETE',
+          path: '/admin/documents/folders/:folder',
+          name: 'Delete Folder',
+          description: 'Delete a document folder and all its contents',
+          auth: 'admin',
+          request: null,
+          response: {
+            success: 'boolean',
+            message: 'string'
+          }
+        },
+        // Vector Management
+        {
+          method: 'GET',
+          path: '/admin/vectors',
+          name: 'List Vectors',
+          description: 'Get all vector configurations',
+          auth: 'admin',
+          request: null,
+          response: {
+            vectors: 'array of vector objects'
+          }
+        },
+        {
+          method: 'POST',
+          path: '/admin/vectors',
+          name: 'Create Vector',
+          description: 'Create a new vector configuration',
+          auth: 'admin',
+          request: {
+            name: 'string (required)',
+            folder_name: 'string (required)'
+          },
+          response: {
+            success: 'boolean',
+            vector_id: 'number',
+            message: 'string'
+          }
+        },
+        {
+          method: 'GET',
+          path: '/admin/vectors/:id',
+          name: 'Get Vector by ID',
+          description: 'Get specific vector configuration by ID',
+          auth: 'admin',
+          request: null,
+          response: {
+            vector: 'vector object'
+          }
+        },
+        {
+          method: 'DELETE',
+          path: '/admin/vectors/:id',
+          name: 'Delete Vector',
+          description: 'Delete a vector configuration',
+          auth: 'admin',
+          request: null,
+          response: {
+            success: 'boolean',
+            message: 'string'
+          }
+        },
+        // RAG Model Management
+        {
           method: 'GET',
           path: '/admin/rag-models',
-          name: 'Admin RAG Models',
-          description: 'Manage RAG models (admin only)',
-          auth: true,
-          adminOnly: true,
+          name: 'List RAG Models (Admin)',
+          description: 'Get all RAG models for admin management',
+          auth: 'admin',
           request: null,
           response: {
             rag_models: 'array of RAG model objects'
+          }
+        },
+        {
+          method: 'POST',
+          path: '/admin/rag-models',
+          name: 'Create RAG Model',
+          description: 'Create a new RAG model',
+          auth: 'admin',
+          request: {
+            name: 'string (required)',
+            vector_id: 'number (required)',
+            system_prompt: 'string (required)',
+            context: 'string (optional)'
+          },
+          response: {
+            success: 'boolean',
+            rag_model_id: 'number',
+            message: 'string'
+          }
+        },
+        {
+          method: 'GET',
+          path: '/admin/rag-models/:id',
+          name: 'Get RAG Model by ID',
+          description: 'Get specific RAG model by ID',
+          auth: 'admin',
+          request: null,
+          response: {
+            rag_model: 'RAG model object'
+          }
+        },
+        {
+          method: 'PUT',
+          path: '/admin/rag-models/:id',
+          name: 'Update RAG Model',
+          description: 'Update RAG model configuration',
+          auth: 'admin',
+          request: {
+            name: 'string (optional)',
+            system_prompt: 'string (optional)',
+            context: 'string (optional)',
+            is_active: 'boolean (optional)'
+          },
+          response: {
+            success: 'boolean',
+            message: 'string'
+          }
+        },
+        {
+          method: 'DELETE',
+          path: '/admin/rag-models/:id',
+          name: 'Delete RAG Model',
+          description: 'Delete a RAG model',
+          auth: 'admin',
+          request: null,
+          response: {
+            success: 'boolean',
+            message: 'string'
           }
         }
       ]
