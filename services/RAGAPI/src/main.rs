@@ -1,4 +1,5 @@
 mod auth_client;
+mod backends;
 mod bedrock_client;
 mod config;
 mod database;
@@ -14,6 +15,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use backends::backend_manager::BackendManager;
 use config::Config;
 use database::Database;
 use embeddings::EmbeddingService;

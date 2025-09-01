@@ -10,6 +10,7 @@ pub struct Config {
     pub aws_region: String,
     pub bedrock_api_url: String,
     pub auth_api_url: String,
+    pub ui_config_api_url: String,
     pub embedding_model: String,
     pub embedding_dimension: usize,
 }
@@ -35,6 +36,8 @@ impl Config {
                 .unwrap_or_else(|_| "http://127.0.0.1:8080".to_string()),
             auth_api_url: env::var("AUTH_API_URL")
                 .unwrap_or_else(|_| "http://127.0.0.1:9102".to_string()),
+            ui_config_api_url: env::var("UI_CONFIG_API_URL")
+                .unwrap_or_else(|_| "http://127.0.0.1:9103".to_string()),
             embedding_model: env::var("EMBEDDING_MODEL")
                 .unwrap_or_else(|_| "amazon.titan-embed-text-v1".to_string()),
             embedding_dimension: env::var("EMBEDDING_DIMENSION")

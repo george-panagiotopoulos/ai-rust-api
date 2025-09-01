@@ -129,6 +129,12 @@ async fn main() -> anyhow::Result<()> {
         .route("/admin/rag-models/:id", get(handlers::get_rag_model))
         .route("/admin/rag-models/:id", put(handlers::update_rag_model))
         .route("/admin/rag-models/:id", delete(handlers::delete_rag_model))
+        // Backend configuration management
+        .route("/admin/backends", get(handlers::get_backend_configs))
+        .route("/admin/backends/:provider", put(handlers::update_backend_config))
+        .route("/admin/backends/:provider/activate", post(handlers::set_active_backend))
+        .route("/admin/backends/status", get(handlers::get_backend_status))
+        .route("/admin/backends/:provider/test", post(handlers::test_backend_connection))
         .layer(axum_middleware::from_fn_with_state(state.auth_client.clone(), middleware::require_admin));
 
     let app = public_routes

@@ -36,3 +36,52 @@ pub struct ConfigApplyResponse {
     pub updated_files: Vec<String>,
     pub errors: Vec<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BackendConfig {
+    pub id: Option<i32>,
+    pub provider: String, // "aws" | "azure"
+    pub is_active: bool,
+    pub llm_config: LLMConfig,
+    pub embedding_config: EmbeddingConfig,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LLMConfig {
+    pub api_key: Option<String>,
+    pub endpoint: Option<String>,
+    pub model_name: Option<String>,
+    pub max_tokens: Option<u32>,
+    pub temperature: Option<f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbeddingConfig {
+    pub api_key: Option<String>,
+    pub endpoint: Option<String>,
+    pub model_name: Option<String>,
+    pub dimension: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BackendConfigRequest {
+    pub provider: String,
+    pub is_active: bool,
+    pub llm_config: LLMConfig,
+    pub embedding_config: EmbeddingConfig,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BackendConfigResponse {
+    pub backends: Vec<BackendConfig>,
+    pub active_backend: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BackendStatusResponse {
+    pub aws_status: String,
+    pub azure_status: String,
+    pub active_backend: String,
+}

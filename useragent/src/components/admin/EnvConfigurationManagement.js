@@ -29,7 +29,9 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -37,12 +39,13 @@ import {
   VisibilityOff as VisibilityOffIcon,
   CheckCircle as ValidIcon,
   Error as ErrorIcon,
-  Warning as WarningIcon,
   ExpandMore as ExpandMoreIcon,
   Security as SecurityIcon,
   Settings as SettingsIcon,
   Storage as StorageIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  Cloud as AWSIcon,
+  Microsoft as AzureIcon
 } from '@mui/icons-material';
 import adminService from '../../services/adminService';
 
@@ -61,21 +64,47 @@ const EnvConfigurationManagement = () => {
   const [editConfig, setEditConfig] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [serviceFilter, setServiceFilter] = useState('All');
+  
+  // Backend switching states
+  const [selectedBackend, setSelectedBackend] = useState('AWS');
+  const [backendSwitchSuccess, setBackendSwitchSuccess] = useState('');
 
   useEffect(() => {
-    fetchConfigs();
+    const initializeBackendAndConfigs = async () => {
+      await fetchCurrentBackend();
+      // fetchConfigs will be called after selectedBackend is updated
+    };
+    initializeBackendAndConfigs();
   }, []);
+
+  // Fetch configs whenever selectedBackend changes
+  useEffect(() => {
+    fetchConfigs();
+  }, [selectedBackend]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchConfigs = async () => {
     try {
       setLoading(true);
       setError('');
+      // Always fetch the standard env configs
       const response = await adminService.getEnvConfigs();
       setConfigs(response.configs || []);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCurrentBackend = async () => {
+    try {
+      const response = await adminService.getBackendStatus();
+      if (response.active_backend) {
+        setSelectedBackend(response.active_backend.toUpperCase());
+      }
+    } catch (err) {
+      console.warn('Could not fetch current backend status:', err.message);
+      // Default to AWS if we can't determine the current backend
     }
   };
 
@@ -107,6 +136,23 @@ const EnvConfigurationManagement = () => {
     }
   };
 
+  const handleBackendSwitch = async (newBackend) => {
+    try {
+      setError('');
+      setBackendSwitchSuccess('');
+      const response = await adminService.switchBackend(newBackend.toLowerCase());
+      if (response.success) {
+        setSelectedBackend(newBackend);
+        setBackendSwitchSuccess(`Successfully switched to ${newBackend} backend`);
+        fetchConfigs(); // Refresh configs after backend switch
+      } else {
+        setError(response.message || `Failed to switch to ${newBackend} backend`);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const openEditDialog = (config) => {
     setEditConfig({
       key: config.key,
@@ -121,7 +167,7 @@ const EnvConfigurationManagement = () => {
 
   const getCategoryIcon = (category) => {
     switch (category) {
-      case 'User Credentials & Models': return <SecurityIcon sx={{ color: 'error.main' }} />;
+      case 'AI Provider Credentials & Models': return <SecurityIcon sx={{ color: 'error.main' }} />;
       case 'Service URLs & Connectivity': return <StorageIcon sx={{ color: 'info.main' }} />;
       case 'System Settings': return <SettingsIcon sx={{ color: 'success.main' }} />;
       case 'Other Configurations': return <SettingsIcon sx={{ color: 'grey.main' }} />;
@@ -131,7 +177,7 @@ const EnvConfigurationManagement = () => {
 
   const getCategoryDescription = (category) => {
     switch (category) {
-      case 'User Credentials & Models': return 'AWS credentials, API keys, and AI model configurations';
+      case 'AI Provider Credentials & Models': return 'AWS and Azure credentials, API keys, and AI model configurations';
       case 'Service URLs & Connectivity': return 'Service endpoints, hosts, and port configurations';
       case 'System Settings': return 'Security settings, timeouts, and system parameters';
       case 'Other Configurations': return 'Additional configuration options';
@@ -149,28 +195,76 @@ const EnvConfigurationManagement = () => {
     }
   };
 
-  const filteredConfigs = configs.filter(config => 
+  // Filter configs based on selected backend - show backend-specific configs + all common ones
+  const getBackendSpecificConfigs = (configs, selectedBackend) => {
+    if (!configs || configs.length === 0) return [];
+    
+    return configs.filter(config => {
+      const key = config.key.toLowerCase();
+      
+      // AWS-specific variables (complete list)
+      const awsSpecificKeys = [
+        'aws_access_key_id',
+        'aws_secret_access_key', 
+        'aws_region',
+        'embedding_model', // AWS Bedrock embedding model
+        'bedrock_api_url'  // Bedrock API service URL
+      ];
+      
+      // Azure-specific variables (complete list)
+      const azureSpecificKeys = [
+        'azure_openai_endpoint',
+        'azure_openai_api_key',
+        'azure_openai_api_version',
+        'azure_openai_deployment',
+        'azure_openai_embedding_model'
+      ];
+      
+      // Check if this config is AWS-specific
+      const isAWSSpecific = awsSpecificKeys.includes(key);
+      
+      // Check if this config is Azure-specific  
+      const isAzureSpecific = azureSpecificKeys.includes(key);
+      
+      if (selectedBackend === 'AWS') {
+        // Show AWS configs and all non-Azure configs
+        return !isAzureSpecific;
+      } else if (selectedBackend === 'Azure') {
+        // Show Azure configs and all non-AWS configs
+        return !isAWSSpecific;
+      }
+      
+      return true; // Default: show all
+    });
+  };
+
+  const backendFilteredConfigs = getBackendSpecificConfigs(configs, selectedBackend);
+  
+  const filteredConfigs = backendFilteredConfigs.filter(config => 
     serviceFilter === 'All' || config.service === serviceFilter
   );
 
-  // Group configurations by logical categories instead of just by service
+  // Group configurations by logical categories - standard categories, not backend-specific
   const categorizeConfig = (config) => {
     const key = config.key.toLowerCase();
     
-    // User-specific settings (AWS keys, models, etc.)
-    if (key.includes('aws') || key.includes('key') || key.includes('secret') || 
+    // AI/Cloud Provider specific credentials and models  
+    if (key.includes('aws') || key.includes('azure') || key.includes('openai') || key.includes('bedrock') ||
+        key.includes('key') || key.includes('secret') || key.includes('token') ||
         key.includes('model') || key.includes('embedding') || key.includes('region')) {
-      return 'User Credentials & Models';
+      return 'AI Provider Credentials & Models';
     }
     
     // Service URLs and endpoints
-    if (key.includes('url') || key.includes('host') || key.includes('port') || key.includes('endpoint')) {
+    if (key.includes('url') || key.includes('host') || key.includes('port') || 
+        key.includes('endpoint') || key.includes('base_url')) {
       return 'Service URLs & Connectivity';
     }
     
-    // System settings (bcrypt cost, jwt expiry, etc.)
+    // System settings
     if (key.includes('cost') || key.includes('expiry') || key.includes('timeout') || 
-        key.includes('log') || key.includes('debug') || key.includes('pool') || key.includes('connection')) {
+        key.includes('log') || key.includes('debug') || key.includes('pool') || 
+        key.includes('connection') || key.includes('database')) {
       return 'System Settings';
     }
     
@@ -187,9 +281,9 @@ const EnvConfigurationManagement = () => {
     return groups;
   }, {});
 
-  // Define the order of categories
+  // Define the order of categories - fixed, not backend-dependent
   const categoryOrder = [
-    'User Credentials & Models',
+    'AI Provider Credentials & Models',
     'Service URLs & Connectivity', 
     'System Settings',
     'Other Configurations'
@@ -210,7 +304,7 @@ const EnvConfigurationManagement = () => {
     }
   });
 
-  const services = ['All', ...new Set(configs.map(config => config.service))];
+  const services = ['All', ...new Set(backendFilteredConfigs.map(config => config.service))];
 
   if (loading) {
     return (
@@ -246,8 +340,50 @@ const EnvConfigurationManagement = () => {
         </Box>
       </Box>
 
+      {/* Backend Selection Toggle */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box display="flex" alignItems="center">
+              {selectedBackend === 'AWS' ? (
+                <AWSIcon sx={{ color: 'orange', mr: 1, fontSize: 28 }} />
+              ) : (
+                <AzureIcon sx={{ color: 'primary.main', mr: 1, fontSize: 28 }} />
+              )}
+              <Box>
+                <Typography variant="h6">
+                  AI Backend: {selectedBackend}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  {selectedBackend === 'AWS' 
+                    ? 'Using AWS Bedrock for AI completions and embeddings' 
+                    : 'Using Azure OpenAI for AI completions and embeddings'
+                  }
+                </Typography>
+              </Box>
+            </Box>
+            <Box display="flex" alignItems="center">
+              <AWSIcon sx={{ color: selectedBackend === 'AWS' ? 'orange' : 'grey.400', mr: 1 }} />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={selectedBackend === 'Azure'}
+                    onChange={(e) => handleBackendSwitch(e.target.checked ? 'Azure' : 'AWS')}
+                    color="primary"
+                  />
+                }
+                label=""
+                sx={{ mr: 1 }}
+              />
+              <AzureIcon sx={{ color: selectedBackend === 'Azure' ? 'primary.main' : 'grey.400' }} />
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+      {backendSwitchSuccess && <Alert severity="success" sx={{ mb: 2 }}>{backendSwitchSuccess}</Alert>}
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="body1" color="textSecondary">
@@ -269,7 +405,7 @@ const EnvConfigurationManagement = () => {
       </Box>
 
       {Object.entries(sortedGroupedConfigs).map(([category, categoryConfigs]) => (
-        <Accordion key={category} defaultExpanded={category === 'User Credentials & Models'} sx={{ mb: 2 }}>
+        <Accordion key={category} defaultExpanded={category === 'AI Provider Credentials & Models'} sx={{ mb: 2 }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Box display="flex" alignItems="center" sx={{ width: '100%' }}>
               {getCategoryIcon(category)}

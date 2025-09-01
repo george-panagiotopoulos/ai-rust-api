@@ -1,11 +1,13 @@
 pub mod vector;
 pub mod rag_model;
+pub mod config;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 pub use vector::*;
 pub use rag_model::*;
+pub use config::*;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct User {

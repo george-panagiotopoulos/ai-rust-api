@@ -1,0 +1,137 @@
+# Adding Azure Backend Implementation Plan
+
+## Overview
+Add AzureAPI service as an alternative to BedrockAPI, allowing users to choose between AWS Bedrock and Azure OpenAI services for both LLM completions and embeddings.
+
+## Phase 1: AzureAPI Service Creation
+### 1.1 Service Structure
+- Create `services/AzureAPI/` directory
+- Copy BedrockAPI structure as template
+- Set up Cargo.toml with Azure OpenAI dependencies
+- Create .env template with Azure configurations
+
+### 1.2 Azure Integration
+- Implement Azure OpenAI client for LLM completions
+- Implement Azure OpenAI embeddings service
+- Add error handling for Azure-specific errors
+- Standardize response formats to match BedrockAPI
+
+### 1.3 Authentication & Configuration
+- JWT token validation (same as BedrockAPI)
+- Azure API key management
+- Endpoint configuration for different Azure regions
+- Model selection (GPT-4, GPT-3.5, Ada-002 embeddings)
+
+## Phase 2: Backend Selection Configuration
+### 2.1 ConfigAPI Updates
+- Add backend_provider config option ("aws" | "azure")
+- Add Azure-specific configuration fields
+- Create configuration management endpoints
+- Database schema updates for backend preferences
+
+### 2.2 UI Configuration Panel
+- Add backend selection dropdown in admin interface
+- Azure configuration form (API keys, endpoints, models)
+- Backend status indicators
+- Test connection functionality
+
+## Phase 3: RAGAPI Modifications
+### 3.1 Dynamic Backend Selection
+- Modify RAGAPI to read backend_provider config
+- Create abstraction layer for LLM providers
+- Update embedding service to support both backends
+- Dynamic endpoint routing based on configuration
+
+### 3.2 Fallback & Error Handling
+- Implement fallback mechanism (Azure -> AWS or vice versa)
+- Enhanced error reporting with provider information
+- Configuration validation
+
+## Phase 4: System Integration
+### 4.1 Service Discovery
+- Update start.sh script to include AzureAPI
+- Add AzureAPI to health checks
+- Service registry updates
+
+### 4.2 Documentation Updates
+- Update CLAUDE.md with 5-service architecture
+- Create AzureAPI README.md
+- Update API documentation with backend selection
+- Update Postman collection
+
+## Phase 5: Testing & Validation
+### 5.1 Unit Testing
+- Test Azure API connections
+- Test backend switching functionality
+- Test error handling and fallbacks
+
+### 5.2 Integration Testing
+- Test existing RAG models with both backends
+- CURL tests for all endpoints with both providers
+- Performance comparison between AWS and Azure
+
+### 5.3 End-to-End Testing
+- Complete RAG pipeline with Azure backend
+- UI backend switching functionality
+- Configuration persistence
+
+## Implementation Steps
+
+### Step 1: Create AzureAPI Service
+1. Create service directory structure
+2. Set up Cargo.toml with dependencies
+3. Implement Azure OpenAI client
+4. Create main.rs with server setup
+5. Implement handlers for chat and embeddings
+6. Add error handling and JWT validation
+
+### Step 2: Backend Configuration System
+1. Update UIConfigAPI database schema
+2. Add backend configuration endpoints
+3. Create UI components for backend selection
+4. Implement configuration validation
+
+### Step 3: RAGAPI Backend Abstraction
+1. Create provider trait/interface
+2. Implement AWS and Azure providers
+3. Add dynamic backend selection
+4. Update embedding service
+
+### Step 4: System Integration
+1. Update start scripts and documentation
+2. Add health checks for AzureAPI
+3. Update API documentation
+4. Create comprehensive tests
+
+### Step 5: Testing & Deployment
+1. Test all endpoints with both backends
+2. Validate RAG model functionality
+3. Performance and reliability testing
+4. Documentation updates
+
+## Environment Variables Required
+```bash
+# Azure Configuration
+AZURE_OPENAI_API_KEY=your_azure_api_key
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+AZURE_OPENAI_API_VERSION=2024-02-15-preview
+AZURE_LLM_DEPLOYMENT_NAME=gpt-4
+AZURE_EMBEDDING_DEPLOYMENT_NAME=text-embedding-ada-002
+```
+
+## Success Criteria
+- AzureAPI service running on port 9104
+- UI allows switching between AWS and Azure
+- Both backends work with existing RAG models
+- All tests pass with both providers
+- Documentation updated and complete
+- System maintains consistent API contracts
+
+## Risk Mitigation
+- Azure API rate limits and quotas
+- Model compatibility between providers
+- Configuration migration complexity
+- Service discovery and load balancing
+- Error handling and fallback scenarios
+
+This plan ensures a complete, production-ready Azure integration while maintaining backward compatibility and system reliability.

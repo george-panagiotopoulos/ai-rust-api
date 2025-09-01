@@ -478,6 +478,82 @@ class AdminService {
       throw new Error('Network error. Please try again.');
     }
   }
+
+  // Backend Configuration Management
+  async getBackendConfigs() {
+    try {
+      const response = await axios.get(`${this.baseURL}/admin/backends`, {
+        headers: this.getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.data) {
+        throw new Error(error.response.data.error || error.response.data.message || 'Failed to fetch backend configurations');
+      }
+      throw new Error('Network error. Please try again.');
+    }
+  }
+
+  async updateBackendConfig(provider, configData) {
+    try {
+      const response = await axios.put(`${this.baseURL}/admin/backends/${provider}`, configData, {
+        headers: this.getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.data) {
+        throw new Error(error.response.data.error || error.response.data.message || 'Failed to update backend configuration');
+      }
+      throw new Error('Network error. Please try again.');
+    }
+  }
+
+  async setActiveBackend(provider) {
+    try {
+      const response = await axios.post(`${this.baseURL}/admin/backends/${provider}/activate`, {}, {
+        headers: this.getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.data) {
+        throw new Error(error.response.data.error || error.response.data.message || 'Failed to set active backend');
+      }
+      throw new Error('Network error. Please try again.');
+    }
+  }
+
+  async getBackendStatus() {
+    try {
+      const response = await axios.get(`${this.baseURL}/admin/backends/status`, {
+        headers: this.getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.data) {
+        throw new Error(error.response.data.error || error.response.data.message || 'Failed to fetch backend status');
+      }
+      throw new Error('Network error. Please try again.');
+    }
+  }
+
+  async testBackendConnection(provider) {
+    try {
+      const response = await axios.post(`${this.baseURL}/admin/backends/${provider}/test`, {}, {
+        headers: this.getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.data) {
+        throw new Error(error.response.data.error || error.response.data.message || 'Failed to test backend connection');
+      }
+      throw new Error('Network error. Please try again.');
+    }
+  }
+
+  // Helper method for switching backend (alias for setActiveBackend)
+  async switchBackend(provider) {
+    return this.setActiveBackend(provider);
+  }
 }
 
 const adminService = new AdminService();

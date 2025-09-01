@@ -3,6 +3,8 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use tracing::info;
 use crate::utils::EncryptionManager;
+use sqlx::types::BigDecimal;
+use bigdecimal::{ToPrimitive, FromPrimitive};
 
 pub struct Database {
     pool: PgPool,
@@ -99,6 +101,43 @@ impl Database {
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 is_active BOOLEAN DEFAULT true
             )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create backend configurations table
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS backend_configs (
+                id SERIAL PRIMARY KEY,
+                provider VARCHAR(50) NOT NULL UNIQUE, -- 'aws' | 'azure'
+                is_active BOOLEAN DEFAULT false,
+                llm_api_key TEXT,
+                llm_endpoint TEXT,
+                llm_model_name VARCHAR(255),
+                llm_max_tokens INTEGER,
+                llm_temperature REAL,
+                embedding_api_key TEXT,
+                embedding_endpoint TEXT,
+                embedding_model_name VARCHAR(255),
+                embedding_dimension INTEGER,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Insert default backend configurations if they don't exist
+        sqlx::query(
+            r#"
+            INSERT INTO backend_configs (provider, is_active, llm_model_name, embedding_model_name, embedding_dimension)
+            VALUES 
+                ('aws', true, 'claude-3-sonnet', 'amazon.titan-embed-text-v1', 1536),
+                ('azure', false, 'gpt-4', 'text-embedding-ada-002', 1536)
+            ON CONFLICT (provider) DO NOTHING
             "#,
         )
         .execute(pool)
@@ -463,6 +502,117 @@ impl Database {
         sqlx::query!("UPDATE rag_models SET is_active = false WHERE id = $1", model_id)
             .execute(&self.pool)
             .await?;
+        Ok(())
+    }
+
+    // Backend configuration methods
+    pub async fn get_backend_configs(&self) -> Result<Vec<crate::models::config::BackendConfig>> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT id, provider, is_active, 
+                   llm_api_key, llm_endpoint, llm_model_name, llm_max_tokens, llm_temperature,
+                   embedding_api_key, embedding_endpoint, embedding_model_name, embedding_dimension,
+                   created_at, updated_at
+            FROM backend_configs ORDER BY provider
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut configs = Vec::new();
+        for row in rows {
+            let llm_config = crate::models::config::LLMConfig {
+                api_key: row.llm_api_key,
+                endpoint: row.llm_endpoint,
+                model_name: row.llm_model_name,
+                max_tokens: row.llm_max_tokens.map(|x| x as u32),
+                temperature: row.llm_temperature.and_then(|x| x.to_f64()),
+            };
+
+            let embedding_config = crate::models::config::EmbeddingConfig {
+                api_key: row.embedding_api_key,
+                endpoint: row.embedding_endpoint,
+                model_name: row.embedding_model_name,
+                dimension: row.embedding_dimension.map(|x| x as u32),
+            };
+
+            configs.push(crate::models::config::BackendConfig {
+                id: Some(row.id),
+                provider: row.provider,
+                is_active: row.is_active.unwrap_or(false),
+                llm_config,
+                embedding_config,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            });
+        }
+
+        Ok(configs)
+    }
+
+    pub async fn get_active_backend(&self) -> Result<Option<String>> {
+        let row = sqlx::query!(
+            "SELECT provider FROM backend_configs WHERE is_active = true LIMIT 1"
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| r.provider))
+    }
+
+    pub async fn update_backend_config(&self, provider: &str, config: &crate::models::config::BackendConfigRequest) -> Result<()> {
+        // First, if this backend is being activated, deactivate all others
+        if config.is_active {
+            sqlx::query!("UPDATE backend_configs SET is_active = false")
+                .execute(&self.pool)
+                .await?;
+        }
+
+        sqlx::query!(
+            r#"
+            UPDATE backend_configs SET
+                is_active = $2,
+                llm_api_key = $3,
+                llm_endpoint = $4,
+                llm_model_name = $5,
+                llm_max_tokens = $6,
+                llm_temperature = $7,
+                embedding_api_key = $8,
+                embedding_endpoint = $9,
+                embedding_model_name = $10,
+                embedding_dimension = $11,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE provider = $1
+            "#,
+            provider,
+            config.is_active,
+            config.llm_config.api_key,
+            config.llm_config.endpoint,
+            config.llm_config.model_name,
+            config.llm_config.max_tokens.map(|x| x as i32),
+            config.llm_config.temperature.map(|x| BigDecimal::from_f64(x).unwrap_or_default()),
+            config.embedding_config.api_key,
+            config.embedding_config.endpoint,
+            config.embedding_config.model_name,
+            config.embedding_config.dimension.map(|x| x as i32),
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn set_active_backend(&self, provider: &str) -> Result<()> {
+        // Deactivate all backends first
+        sqlx::query!("UPDATE backend_configs SET is_active = false")
+            .execute(&self.pool)
+            .await?;
+
+        // Activate the specified backend
+        sqlx::query!("UPDATE backend_configs SET is_active = true WHERE provider = $1", provider)
+            .execute(&self.pool)
+            .await?;
+
         Ok(())
     }
 }
